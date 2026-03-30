@@ -71,16 +71,149 @@ simulated function ProcessTouch (Actor Other, vector HitLocation)
     Super(ScrnCustomShotgunBullet).ProcessTouch(Other,HitLocation);
  }
 
+//simulated function ProcessTouch (Actor Other, vector HitLocation)
+//{
+//    local vector X;
+//    local Vector TempHitLocation, HitNormal;
+//    local array<int>    HitPoints;
+//    local KFPlayerReplicationInfo KFPRI;
+//    local KFPawn Human;
+//    local Pawn Victim;
+//    local KFMonster KFM;
+//    local bool bNoDamageReduction;
+//	local Vector HitNormal;
+//	local vector outvec;
+//
+//    if ( Other == none || Other == Instigator || Other.Base == Instigator || !Other.bBlockHitPointTraces  )
+//        return;
+//
+//	outvec=Velocity-2.0*HitNormal*(Velocity dot HitNormal);
+//    outvec=normal(outvec);
+//	if ( EffectIsRelevant(Location,false) && Other.IsA('KFMonster'))
+//			Spawn(Class'KFDA2Weapons.da_effects_BulletHitFlesh_Shotgun',,,Location+outvec*ExploWallOut,rotator(outvec));
+//    Super(ScrnCustomShotgunBullet).ProcessTouch(Other,HitLocation);
+//
+//    X = Vector(Rotation);
+//
+//    if ( Instigator != none && ROBulletWhipAttachment(Other) != none ) {
+//        // we touched player's auxilary collision cylinder, now let's trace to the player himself
+//        // Other.Base = KFPawn
+//        if( Other.Base == none || Other.Base.bDeleteMe )
+//            return;
+//
+//        Other = Instigator.HitPointTrace(TempHitLocation, HitNormal, HitLocation + (200 * X), HitPoints, HitLocation,, 1);
+//
+//        if( Other == none || HitPoints.Length == 0 || Other.bDeleteMe )
+//            return; // bullet didn't hit a pawn
+//
+//        Human = KFPawn(Other);
+//        if ( Human != none ) {
+//            if (class'ScrnF'.static.SearchObj(IgnoreActors, Human) != -1)
+//                return;
+//            Victim = Human;
+//            // cannot hit a player more than once
+//            SameVictimCounter = 3;
+//            bNoDamageReduction = Victim.Health <= 0;
+//            Human.ProcessLocationalDamage(Damage * PlayerDamageMult, Instigator, TempHitLocation, MomentumTransfer * X, MyDamageType,HitPoints);
+//            IgnoreActors[IgnoreActors.Length] = Human;
+//        }
+//    }
+//    else {
+//        if ( ExtendedZCollision(Other) != none)
+//            Victim = Pawn(Other.Owner); // ExtendedZCollision is attached to KFMonster
+//        else if ( Pawn(Other) != none )
+//            Victim = Pawn(Other);
+//
+//
+//        if ( Victim != none ) {
+//            KFM = KFMonster(Victim);
+//            Human = KFPawn(Victim);
+//
+//            if (Human != none) {
+//                // XXX: is this even possible?
+//                // Can we hit a KFPawn without hitting its surrounding KFBulletWhipAttachment first?
+//                if (class'ScrnF'.static.SearchObj(IgnoreActors, Human) != -1)
+//                    return;
+//                IgnoreActors[IgnoreActors.Length] = Human;
+//            }
+//
+//            // kick dead bodies for visual fx but no gameplay impact
+//            bNoDamageReduction = Victim.Health <= 0;
+//
+//            if ( OldVictim != Victim ) {
+//                OldVictim = Victim;
+//                SameVictimCounter = 1;
+//            }
+//            else if ( ++SameVictimCounter > 2 ) {
+//                // the same target can hit twice max: body and head (ExtendedZCollision)
+//                return;
+//            }
+//
+//            bHeadshot = Victim.IsHeadShot(HitLocation, X, 1.0);
+//            if ( bHeadshot ) {
+//                Victim.TakeDamage(Damage * HeadShotDamageMult, Instigator, HitLocation, MomentumTransfer * X, MyDamageType);
+//            }
+//            else if (SameVictimCounter == 1) {
+//                Victim.TakeDamage(Damage, Instigator, HitLocation, MomentumTransfer * X, MyDamageType);
+//            }
+//            else {
+//                // only headshots can damage the same target twice.
+//                return;
+//            }
+//        }
+//        else {
+//            Other.TakeDamage(Damage, Instigator, HitLocation, MomentumTransfer * X, MyDamageType);
+//        }
+//    }
+//
+//    if (bNoDamageReduction)
+//        return;
+//
+//    if ( Instigator != none )
+//        KFPRI = KFPlayerReplicationInfo(Instigator.PlayerReplicationInfo);
+//    if ( KFPRI != none && KFPRI.ClientVeteranSkill != none ) {
+//        PenDamageReduction = KFPRI.ClientVeteranSkill.static.GetShotgunPenetrationDamageMulti(KFPRI,
+//                default.PenDamageReduction);
+//    }
+//    else {
+//        PenDamageReduction = default.PenDamageReduction;
+//    }
+//
+//    if ( Victim != none && Victim.Health <= 0 ) {
+//        // dead bodies reduce damage less
+//        PenDamageReduction += (1.0 - PenDamageReduction) * 0.5;
+//    }
+//    else if ( KFM != none ) {
+//        // loose penetrational damage after hitting specific zeds -- PooSH
+//        PenDamageReduction *= ZedPenDamageReduction(KFM);
+//    }
+//
+//    Damage *= PenDamageReduction;
+//    if ( Damage < MinDamage )
+//        Destroy();
+//}
+
 defaultproperties
 {
     DamageAtten=5.000000
     MaxPenetrations=3
     PenDamageReduction=0.75 //0.5
-    BigZedPenDmgReduction=0.65
+    BigZedPenDmgReduction=1.0 // No extra reduction
     BigZedMinHealth=1000
-    MediumZedPenDmgReduction=0.7
+    MediumZedPenDmgReduction=1.0 // No extra reduction
     MediumZedMinHealth=500
     HeadShotDamageMult=2.000000
+    ExploWallOut=2.000000
+    Speed=6500.000000
+    MaxSpeed=8000.000000
+    Damage=40.000000 //18 OG
+    MinDamage=5.0
+    DamageRadius=0.000000
+    MomentumTransfer=15000.000000
+    MyDamageType=Class'KFDA2Weapons.da_damtypes_LK2Shotgun'
+    ImpactEffect=class'KFDA2Weapons.da_BulletHitEffect' //Using this doesn't cause the blood hit effects play for some reason
+    LifeSpan=3.000000 //1
+
     HitMatFX(0)=Class'KFDA2Weapons.da_effects_BulletHitRock_Shotgun'
     HitMatFX(1)=Class'KFDA2Weapons.da_effects_BulletHitRock_Shotgun'
     HitMatFX(2)=Class'KFDA2Weapons.da_effects_BulletHitDirt_Shotgun'
@@ -100,13 +233,4 @@ defaultproperties
     HitMatFX(17)=Class'KFDA2Weapons.da_effects_BulletHitDirt_Shotgun'
     HitMatFX(18)=Class'KFDA2Weapons.da_effects_BulletHitDirt_Shotgun'
     HitMatFX(19)=Class'KFDA2Weapons.da_effects_BulletHitDirt_Shotgun'
-    ExploWallOut=2.000000
-    Speed=6500.000000
-    MaxSpeed=8000.000000
-    Damage=40.000000 //18 OG
-    DamageRadius=0.000000
-    MomentumTransfer=15000.000000
-    MyDamageType=Class'KFDA2Weapons.da_damtypes_LK2Shotgun'
-    ImpactEffect=class'KFDA2Weapons.da_BulletHitEffect' //Using this doesn't cause the blood hit effects play for some reason
-    LifeSpan=3.000000 //1
 }

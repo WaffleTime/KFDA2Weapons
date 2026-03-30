@@ -278,10 +278,10 @@ simulated function ServerInterruptReload()
 	bIsReloading = false;
 	bReloadEffectDone = false;
 	if (!bChamberThisReload || MagAmmoRemaining <= 0)
-    {
-        PlayAnim(postReloadAnim, ReloadAnimRate * 2.0, TweenTime);
-        FireMode[0].NextFireTime = Level.TimeSeconds + (0.20/GetReloadMultiplier());
-		//PlayIdle();
+    {	// This doesn't play well on real servers
+        //PlayAnim(postReloadAnim, ReloadAnimRate * 2.0, TweenTime);
+        //FireMode[0].NextFireTime = Level.TimeSeconds + (0.20/GetReloadMultiplier());
+		PlayIdle();
     }
     else
 	{
@@ -300,11 +300,11 @@ simulated function ServerInterruptReload()
 simulated function ClientInterruptReload()
 {
 	bIsReloading = false;
-	if ( Role < ROLE_Authority && !bChamberThisReload || MagAmmoRemaining <= 0)
-    {
-        PlayAnim(postReloadAnim, ReloadAnimRate * 2.0, TweenTime);
-        FireMode[0].NextFireTime = Level.TimeSeconds + (0.20/GetReloadMultiplier());
-		//PlayIdle();
+	if (!bChamberThisReload || MagAmmoRemaining <= 0)
+    {   // This doesn't play well on real servers
+        //PlayAnim(postReloadAnim, ReloadAnimRate * 2.0, TweenTime);
+        //FireMode[0].NextFireTime = Level.TimeSeconds + (0.20/GetReloadMultiplier());
+		PlayIdle();
     }
 	else
 	{

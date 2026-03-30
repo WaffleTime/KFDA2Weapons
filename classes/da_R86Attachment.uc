@@ -1,7 +1,6 @@
 class da_R86Attachment extends KFWeaponAttachment;
 
-var   bool              bUseTraces;
-
+var bool bUseTraces;
 var bool bLoopFire;
 var bool bUseSpewer;
 
@@ -34,10 +33,12 @@ simulated function UpdateTracer()
     if (Level.NetMode == NM_DedicatedServer)
         return;
 
-    SpawnLoc=GetTracerStart();
-//    if(mHitLocation == mOldHitLocation)
-		SpawnDir = vector( Instigator.GetViewRotation() );
-//	else SpawnDir = Normal(mHitLocation - SpawnLoc);
+    //SpawnLoc=GetTracerStart(); // Original
+    SpawnLoc = GetTracerStart();
+//    if(mHitLocation == mOldHitLocation) // Commented out in DA2 Code
+		SpawnDir = vector( Instigator.GetViewRotation() ); // R86 Attach Code - Causes it to go to proper shot in 1p but doesn't viewangle in 3p
+        //SpawnDir = Normal(mHitLocation - SpawnLoc); // Added in Vanilla KF & DA2 Normal Tracers - This causes them to go to last shot and looks bad
+//	else SpawnDir = Normal(mHitLocation - SpawnLoc); // Commented out in DA2 Code
 
     //if(mhitlocation!=vect(0,0,0))
 
@@ -48,6 +49,23 @@ simulated function UpdateTracer()
     }
 
 	mOldHitLocation = mHitLocation;
+}
+
+simulated function vector GetTracerStart() // This does nothing as it's mostly just Vanilla code
+{
+	local Pawn p;
+
+	p = Pawn(Owner);
+
+	if ( (p != None) && p.IsFirstPerson() && p.Weapon != None )
+		return p.Weapon.GetEffectStart();
+
+	if( Instigator!=None && (Level.TimeSeconds-LastRenderTime)>1.0 )
+		Return Instigator.Location;
+	// 3rd person
+	if ( mMuzFlash3rd != None )
+		return GetBoneCoords('Muzzle').origin;
+	else return Location;
 }
 
 simulated function WeaponLight()
@@ -73,33 +91,6 @@ simulated function WeaponLight()
     else
 		Timer();
 }
-
-//##LEVI - Tracer Effects
-//simulated function vector GetTracerStart()
-//{
-//    local Pawn p;
-//    local weapon w;
-//    local Vector X,Y,Z;
-//
-//
-//    if(pawn(owner)!=none && pawn(owner).weapon!=none)
-//    {
-//        p=pawn(owner);
-//        w=p.weapon;
-//
-//        if (Level.TimeSeconds-LastRenderTime>1) {
-//            w.GetViewAxes(X, Y, Z);
-//            w.SetLocation(p.Location+p.eyeposition()-6*Z);
-//            return (p.Location+p.eyeposition()-6*Z);
-//        }
-//        else if(p.IsFirstPerson())
-//             return w.GetBoneCoords('Muzzle').origin;
-//
-//          // 3rd person
-//         return GetBoneCoords('Muzzle').origin;
-//    }
-//    return location;
-//}
 
 simulated event ThirdPersonEffects()
 {
@@ -161,6 +152,7 @@ simulated function Destroyed()
 	Super.Destroyed();
 }
 
+// Causes extra traces if not here
 function UpdateHit(Actor HitActor, vector HitLocation, vector HitNormal) {
     mHitLocation = HitLocation;
 }
