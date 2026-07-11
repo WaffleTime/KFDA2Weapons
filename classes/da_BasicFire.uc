@@ -68,13 +68,15 @@ function FlashMuzzleFlash()
         MuzEmitter.SpawnParticle(1);
 }
 
-function DoTrace(Vector Start, Rotator Dir)
+//Old DoTrace - Possibly causing crashes
+/*function DoTrace(Vector Start, Rotator Dir)
 {
 	local Vector X,Y,Z, End, HitLocation, HitNormal, ArcEnd;
 	local Actor Other;
 	local KFWeaponAttachment WeapAttach;
 	local array<int>	HitPoints;
 	local KFPawn HitPawn;
+    local int Damage;
     local material surface;
 
 	MaxRange();
@@ -123,6 +125,124 @@ function DoTrace(Vector Start, Rotator Dir)
 		HitNormal = Normal(Start - End);
 	}
     Super(ScrnFire).DoTrace(Start,Dir);
+}*/
+
+function DoTrace(Vector Start, Rotator Dir)
+{
+    local Vector X,Y,Z, End, HitLocation, HitNormal, ArcEnd;
+    local Actor Other;
+    local byte HitCount, PenCounter;
+    local float HitDamage, HitMomentum;
+    local array<int> HitPoints;
+    local array<Actor> IgnoreActors;
+    local KFPawn HitPawn;
+    local KFMonster Zed;
+    local int i;
+    local bool bWasDecapitated;
+    local material surface;
+
+    KillCountPerTrace = 0;
+
+    MaxRange();
+
+    Weapon.GetViewAxes(X, Y, Z);
+    if ( Weapon.WeaponCentered() ) {
+        ArcEnd = (Instigator.Location + Weapon.EffectOffset.X * X + 1.5 * Weapon.EffectOffset.Z * Z);
+    }
+    else {
+        ArcEnd = (Instigator.Location + Instigator.CalcDrawOffset(Weapon) + Weapon.EffectOffset.X * X +
+        Weapon.Hand * Weapon.EffectOffset.Y * Y + Weapon.EffectOffset.Z * Z);
+    }
+
+    X = Vector(Dir);
+    End = Start + TraceRange * X;
+    HitDamage = DamageMax;
+    HitMomentum = Momentum;
+
+    // HitCount isn't a number of max penetration. It is just to be sure we won't stuck in infinite loop
+    while( ++HitCount < 127 && HitDamage >= DamageMin )
+    {
+        Zed = none;
+        HitPawn = none;
+
+        Other = Instigator.HitPointTrace(HitLocation, HitNormal, End, HitPoints, Start,, 1);
+        if( Other == none ) {
+            break;
+        }
+        else if( Other==Instigator || Other.Base == Instigator ) {
+            IgnoreActors[IgnoreActors.Length] = Other;
+            Other.SetCollision(false);
+            Start = HitLocation;
+            continue;
+        }
+        else if ( Other.bWorldGeometry || Other == Level ) {
+            if( KFWeaponAttachment(Weapon.ThirdPersonActor) != None )
+                KFWeaponAttachment(Weapon.ThirdPersonActor).UpdateHit(Other,HitLocation,HitNormal);
+                SpawnHitEffects(other, surface, hitlocation, rotator(hitnormal)); // Not sure where the optimal place to put this
+            break;
+        }
+
+        Zed = KFMonster(Other);
+        if ( Zed != none ) {
+            IgnoreActors[IgnoreActors.Length] = Other;
+            Other.SetCollision(false);
+            SpawnHitEffects(other, surface, hitlocation, rotator(hitnormal)); // Not sure where the optimal place to put this
+        }
+        else if( ExtendedZCollision(Other) != none && Other.Owner != none ) {
+            IgnoreActors[IgnoreActors.Length] = Other;
+            IgnoreActors[IgnoreActors.Length] = Other.Owner;
+            Other.SetCollision(false);
+            Other.Owner.SetCollision(false);
+            Zed = KFMonster(Other.Owner);
+            SpawnHitEffects(other, surface, hitlocation, rotator(hitnormal)); // Not sure where the optimal place to put this
+        }
+        else {
+            HitPawn = KFPawn(Other);
+            SpawnHitEffects(other, surface, hitlocation, rotator(hitnormal)); // Not sure where the optimal place to put this
+        }
+
+        if (HitPawn != none) {
+            if(!HitPawn.bDeleteMe) {
+                 HitPawn.ProcessLocationalDamage(int(HitDamage), Instigator, HitLocation, HitMomentum*X,DamageType,
+                        HitPoints);
+            }
+            IgnoreActors[IgnoreActors.Length] = Other;
+            IgnoreActors[IgnoreActors.Length] = HitPawn.AuxCollisionCylinder;
+            Other.SetCollision(false);
+            HitPawn.AuxCollisionCylinder.SetCollision(false);
+        }
+        else if (Zed != none) {
+            bWasDecapitated = Zed.bDecapitated;
+            AdjustZedDamage(Zed, HitDamage);
+            Zed.TakeDamage(HitDamage, Instigator, HitLocation, HitMomentum*X, DamageType);
+            if (Zed == none || Zed.Health <= 0 || (!bWasDecapitated && Zed.bDecapitated)) {
+                ++KillCountPerTrace;
+            }
+            else if (Zed != none && PenDmgReductionByHealth > 0) {
+                HitDamage *= 1.0 - PenDmgReductionByHealth * Zed.Health;
+                HitMomentum *= 1.0 - PenDmgReductionByHealth * Zed.Health;
+            }
+        }
+        else {
+            Other.TakeDamage(HitDamage, Instigator, HitLocation, HitMomentum*X, DamageType);
+            //This breaks the penetration mechanic, the very thing that this class was made for??? Hello??
+            //break;
+        }
+
+        if (++PenCounter > MaxPenetrations)
+            break;
+
+        HitDamage *= PenDmgReduction;
+        HitMomentum *= PenDmgReduction;
+        Start = HitLocation;
+    }
+
+    // Turn the collision back on for any actors we turned it off
+    for (i = 0; i < IgnoreActors.Length; ++i) {
+        if (IgnoreActors[i] != none) {
+            IgnoreActors[i].SetCollision(true);
+        }
+    }
 }
 
 function da_effects_HitHack hackSpawn(Class<Actor> c, vector hitL, rotator hitN) {
@@ -168,50 +288,55 @@ function SpawnHitEffects(actor other, material surface, vector hitlocation, rota
 
 defaultproperties
 {
-     RicochetSFX(0)=Sound'DA2_Various.HitSounds.BulletRicochet'
-     RicochetSFX(1)=Sound'DA2_Various.HitSounds.BulletRicochet2'
-     MaterialSFX(0)=Sound'DA2_Various.HitSounds.BulletHit'
-     MaterialSFX(1)=Sound'DA2_Various.HitSounds.BulletHitStone'
-     MaterialSFX(2)=Sound'DA2_Various.HitSounds.bullethitdirt'
-     MaterialSFX(3)=Sound'DA2_Various.HitSounds.bullethitmetal'
-     MaterialSFX(4)=Sound'DA2_Various.HitSounds.bullethitwood'
-     MaterialSFX(5)=Sound'DA2_Various.HitSounds.bullethitdirt'
-     MaterialSFX(6)=Sound'DA2_Various.HitSounds.BulletHitFlesh'
-     MaterialSFX(7)=Sound'DA2_Various.HitSounds.BulletHitStone'
-     MaterialSFX(8)=Sound'DA2_Various.HitSounds.BulletHitSand'
-     MaterialSFX(10)=Sound'DA2_Various.HitSounds.bullethitglass'
-     MaterialSFX(11)=Sound'DA2_Various.HitSounds.bullethitdirt'
-     MaterialSFX(12)=Sound'DA2_Various.HitSounds.BulletHitStone'
-     MaterialSFX(13)=Sound'DA2_Various.HitSounds.bullethitwood'
-     MaterialSFX(14)=Sound'DA2_Various.HitSounds.bullethitdirt'
-     MaterialSFX(15)=Sound'DA2_Various.HitSounds.bullethitmetal'
-     MaterialSFX(16)=Sound'DA2_Various.HitSounds.bullethitwood'
-     MaterialSFX(17)=Sound'DA2_Various.HitSounds.BulletHitSand'
-     MaterialSFX(18)=Sound'DA2_Various.HitSounds.bullethitdirt'
-     MaterialSFX(19)=Sound'DA2_Various.HitSounds.bullethitdirt'
-     HitSFXVolume=0.750000
-     HitFXChance=1.000000
-     HitFx=Class'KFDA2Weapons.da_effects_BulletHit'
-     MaterialFX(0)=Class'KFDA2Weapons.da_effects_BulletHitRock'
-     MaterialFX(1)=Class'KFDA2Weapons.da_effects_BulletHitRock'
-     MaterialFX(2)=Class'KFDA2Weapons.da_effects_BulletHitDirt'
-     MaterialFX(3)=Class'KFDA2Weapons.da_effects_BulletHitMetal'
-     MaterialFX(4)=Class'KFMod.WoodHitEmitter'
-     MaterialFX(5)=Class'KFDA2Weapons.da_effects_BulletHitDirt'
-     MaterialFX(6)=Class'KFDA2Weapons.da_effects_BulletHitFlesh'
-     MaterialFX(7)=Class'KFDA2Weapons.da_effects_BulletHitSnow'
-     MaterialFX(8)=Class'KFDA2Weapons.da_effects_BulletHitSnow'
-     MaterialFX(10)=Class'KFMod.GlassHitEmitter'
-     MaterialFX(11)=Class'KFDA2Weapons.da_effects_BulletHitDirt'
-     MaterialFX(12)=Class'KFDA2Weapons.da_effects_BulletHitRock'
-     MaterialFX(13)=Class'KFMod.WoodHitEmitter'
-     MaterialFX(14)=Class'KFDA2Weapons.da_effects_BulletHitDirt'
-     MaterialFX(15)=Class'KFDA2Weapons.da_effects_BulletHitMetal'
-     MaterialFX(16)=Class'KFMod.WoodHitEmitter'
-     MaterialFX(17)=Class'KFDA2Weapons.da_effects_BulletHitDirt'
-     MaterialFX(18)=Class'KFDA2Weapons.da_effects_BulletHitDirt'
-     MaterialFX(19)=Class'KFDA2Weapons.da_effects_BulletHitDirt'
-     HitDecal=Class'KFDA2Weapons.da_effects_BulletHole'
-     //HeadShotDamageMult=2.000000
-     //AmmoClass=Class'da2.da_weapons_Ammo'
+    MaxPenetrations=0 // Change on weapon
+    PenDmgReduction=0.0 // Change on weapon
+    PenDmgReductionByHealth=0.0  //0.0005 zed with 100 hp remaining reduces the following damage by 5%
+    DamageMin=10  // the bullet cannot over-penetrate the body if its leftover damage is lower than DamageMin
+
+    RicochetSFX(0)=Sound'DA2_Various.HitSounds.BulletRicochet'
+    RicochetSFX(1)=Sound'DA2_Various.HitSounds.BulletRicochet2'
+    MaterialSFX(0)=Sound'DA2_Various.HitSounds.BulletHit'
+    MaterialSFX(1)=Sound'DA2_Various.HitSounds.BulletHitStone'
+    MaterialSFX(2)=Sound'DA2_Various.HitSounds.bullethitdirt'
+    MaterialSFX(3)=Sound'DA2_Various.HitSounds.bullethitmetal'
+    MaterialSFX(4)=Sound'DA2_Various.HitSounds.bullethitwood'
+    MaterialSFX(5)=Sound'DA2_Various.HitSounds.bullethitdirt'
+    MaterialSFX(6)=Sound'DA2_Various.HitSounds.BulletHitFlesh'
+    MaterialSFX(7)=Sound'DA2_Various.HitSounds.BulletHitStone'
+    MaterialSFX(8)=Sound'DA2_Various.HitSounds.BulletHitSand'
+    MaterialSFX(10)=Sound'DA2_Various.HitSounds.bullethitglass'
+    MaterialSFX(11)=Sound'DA2_Various.HitSounds.bullethitdirt'
+    MaterialSFX(12)=Sound'DA2_Various.HitSounds.BulletHitStone'
+    MaterialSFX(13)=Sound'DA2_Various.HitSounds.bullethitwood'
+    MaterialSFX(14)=Sound'DA2_Various.HitSounds.bullethitdirt'
+    MaterialSFX(15)=Sound'DA2_Various.HitSounds.bullethitmetal'
+    MaterialSFX(16)=Sound'DA2_Various.HitSounds.bullethitwood'
+    MaterialSFX(17)=Sound'DA2_Various.HitSounds.BulletHitSand'
+    MaterialSFX(18)=Sound'DA2_Various.HitSounds.bullethitdirt'
+    MaterialSFX(19)=Sound'DA2_Various.HitSounds.bullethitdirt'
+    HitSFXVolume=0.750000
+    HitFXChance=1.000000
+    HitFx=Class'KFDA2Weapons.da_effects_BulletHit'
+    MaterialFX(0)=Class'KFDA2Weapons.da_effects_BulletHitRock'
+    MaterialFX(1)=Class'KFDA2Weapons.da_effects_BulletHitRock'
+    MaterialFX(2)=Class'KFDA2Weapons.da_effects_BulletHitDirt'
+    MaterialFX(3)=Class'KFDA2Weapons.da_effects_BulletHitMetal'
+    MaterialFX(4)=Class'KFMod.WoodHitEmitter'
+    MaterialFX(5)=Class'KFDA2Weapons.da_effects_BulletHitDirt'
+    MaterialFX(6)=Class'KFDA2Weapons.da_effects_BulletHitFlesh'
+    MaterialFX(7)=Class'KFDA2Weapons.da_effects_BulletHitSnow'
+    MaterialFX(8)=Class'KFDA2Weapons.da_effects_BulletHitSnow'
+    MaterialFX(10)=Class'KFMod.GlassHitEmitter'
+    MaterialFX(11)=Class'KFDA2Weapons.da_effects_BulletHitDirt'
+    MaterialFX(12)=Class'KFDA2Weapons.da_effects_BulletHitRock'
+    MaterialFX(13)=Class'KFMod.WoodHitEmitter'
+    MaterialFX(14)=Class'KFDA2Weapons.da_effects_BulletHitDirt'
+    MaterialFX(15)=Class'KFDA2Weapons.da_effects_BulletHitMetal'
+    MaterialFX(16)=Class'KFMod.WoodHitEmitter'
+    MaterialFX(17)=Class'KFDA2Weapons.da_effects_BulletHitDirt'
+    MaterialFX(18)=Class'KFDA2Weapons.da_effects_BulletHitDirt'
+    MaterialFX(19)=Class'KFDA2Weapons.da_effects_BulletHitDirt'
+    HitDecal=Class'KFDA2Weapons.da_effects_BulletHole'
+    //HeadShotDamageMult=2.000000
+    //AmmoClass=Class'da2.da_weapons_Ammo'
 }

@@ -33,11 +33,16 @@ simulated function UpdateTracer()
     if (Level.NetMode == NM_DedicatedServer)
         return;
 
-    //SpawnLoc=GetTracerStart(); // Original
     SpawnLoc = GetTracerStart();
 //    if(mHitLocation == mOldHitLocation) // Commented out in DA2 Code
+    if (Instigator.IsLocallyControlled())
+    {
 		SpawnDir = vector( Instigator.GetViewRotation() ); // R86 Attach Code - Causes it to go to proper shot in 1p but doesn't viewangle in 3p
-        //SpawnDir = Normal(mHitLocation - SpawnLoc); // Added in Vanilla KF & DA2 Normal Tracers - This causes them to go to last shot and looks bad
+    }
+    else
+    {
+        SpawnDir = Normal(mHitLocation - SpawnLoc); // Added in Vanilla KF & DA2 Normal Tracers - This causes them to go to last shot and looks bad
+    }
 //	else SpawnDir = Normal(mHitLocation - SpawnLoc); // Commented out in DA2 Code
 
     //if(mhitlocation!=vect(0,0,0))
