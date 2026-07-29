@@ -6,7 +6,7 @@ class da_A9Fire extends da_BasicFire;
 // Overwritten to switch damage types for the firebug
 function DoTrace(Vector Start, Rotator Dir)
 {
-	if ((KFPlayerReplicationInfo(Weapon.Instigator.PlayerReplicationInfo).ClientVeteranSkill.default.PerkIndex==5) || (KFPlayerReplicationInfo(Weapon.Instigator.PlayerReplicationInfo).ClientVeteranSkill.default.PerkIndex==20))
+	if ((KFPlayerReplicationInfo(Weapon.Instigator.PlayerReplicationInfo).ClientVeteranSkill.default.PerkIndex==5) || (KFPlayerReplicationInfo(Weapon.Instigator.PlayerReplicationInfo).ClientVeteranSkill.default.PerkIndex==18))
 		DamageType = Class'KFDA2Weapons.da_damtypes_A9SMG_SR';
 	else 
 		DamageType = Class'KFDA2Weapons.da_damtypes_A9SMG';

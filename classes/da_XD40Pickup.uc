@@ -3,7 +3,7 @@ class da_XD40Pickup extends KFWeaponPickup;
 defaultproperties
 {
      Weight=1.000000
-     cost=400
+     cost=500
      AmmoCost=10
      BuyClipSize=17
      PowerValue=20

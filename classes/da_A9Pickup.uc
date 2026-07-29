@@ -3,7 +3,7 @@ class da_A9Pickup extends KFWeaponPickup;
 defaultproperties
 {
      Weight=3.0
-     cost=1375
+     cost=1250
      AmmoCost=20
      BuyClipSize=30
      PowerValue=30

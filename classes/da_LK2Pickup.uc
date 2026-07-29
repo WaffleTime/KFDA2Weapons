@@ -3,7 +3,7 @@ class da_LK2Pickup extends KFWeaponPickup;
 defaultproperties
 {
      Weight=5.0
-     cost=2500
+     cost=2000
      AmmoCost=20
      BuyClipSize=8
      PowerValue=70

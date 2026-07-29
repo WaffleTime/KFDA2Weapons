@@ -3,7 +3,7 @@ class da_MR56Pickup extends KFWeaponPickup;
 defaultproperties
 {
      Weight=5.0
-     cost=1500
+     cost=1750
      AmmoCost=30
      BuyClipSize=40
      PowerValue=40

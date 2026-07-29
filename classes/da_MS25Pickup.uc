@@ -3,7 +3,7 @@ class da_MS25Pickup extends KFWeaponPickup;
 defaultproperties
 {
      Weight=7.0
-     cost=2500
+     cost=3000
      AmmoCost=100
      BuyClipSize=4
      PowerValue=100

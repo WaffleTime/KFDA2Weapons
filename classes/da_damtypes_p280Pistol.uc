@@ -5,7 +5,7 @@ defaultproperties
 {
      bSniperWeapon=True
      WeaponClass=Class'KFDA2Weapons.da_p280Handgun'
-     HeadShotDamageMult=2.0 // Taken from da_weapons_BasicFire
+     HeadShotDamageMult=1.5 //2.0 Taken from da_weapons_BasicFire
      DeathString="%k > P2-80 Pistol > %o"
      FemaleSuicide="%o > P2-80 Pistol > herself."
      MaleSuicide="%o > P2-80 Pistol > himself."

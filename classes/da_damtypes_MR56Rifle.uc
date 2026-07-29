@@ -4,7 +4,7 @@ class da_damtypes_MR56Rifle extends KFWeaponDamageType
 defaultproperties
 {
      WeaponClass=Class'KFDA2Weapons.da_MR56AR'
-     HeadShotDamageMult=2.0 // Taken from da_weapons_BasicFire
+     HeadShotDamageMult=1.5 //2.0 Taken from da_weapons_BasicFire
      DeathString="%k > MR-56 Assault Rifle > %o"
      FemaleSuicide="%o > MR-56 Assault Rifle > herself."
      MaleSuicide="%o > MR-56 Assault Rifle > himself."

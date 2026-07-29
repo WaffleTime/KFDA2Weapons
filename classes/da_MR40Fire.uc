@@ -117,7 +117,7 @@ defaultproperties
     FlashEmitterClass=Class'KFDA2Weapons.da_MR40Muzzle1st'
     DamageType=Class'KFDA2Weapons.da_damtypes_MR40Heavy'
     DamageMin=26
-    DamageMax=55 //32 OG
+    DamageMax=56 //32 OG
     Momentum=1500.000000
     TransientSoundVolume=2.500000
     TransientSoundRadius=400.000000

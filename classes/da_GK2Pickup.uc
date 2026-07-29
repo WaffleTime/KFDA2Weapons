@@ -3,12 +3,12 @@ class da_GK2Pickup extends KFWeaponPickup;
 defaultproperties
 {
      Weight=5.0
-     cost=2000
+     cost=2500
      AmmoCost=24
      BuyClipSize=8
-	PowerValue=70
-	SpeedValue=50
-	RangeValue=20
+     PowerValue=70
+     SpeedValue=50
+     RangeValue=20
      Description="GK2 Shotgun."
      ItemName="GK2 Shotgun"
      ItemShortName="GK2 Shotgun"

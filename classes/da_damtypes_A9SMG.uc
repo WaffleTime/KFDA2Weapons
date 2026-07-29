@@ -4,7 +4,7 @@ class da_damtypes_A9SMG extends KFWeaponDamageType
 defaultproperties
 {
      WeaponClass=Class'KFDA2Weapons.da_A9SMG'
-     HeadShotDamageMult=2.0 // Taken from da_weapons_BasicFire
+     HeadShotDamageMult=1.5 //2.0 Taken from da_weapons_BasicFire
      DeathString="%k > A9 Submachine Gun > %o"
      FemaleSuicide="%o > A9 Submachine Gun > herself."
      MaleSuicide="%o > A9 Submachine Gun > himself."

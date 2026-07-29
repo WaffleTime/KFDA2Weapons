@@ -202,7 +202,7 @@ defaultproperties
     BigZedMinHealth=1000
     MediumZedPenDmgReduction=1.0 // No extra reduction
     MediumZedMinHealth=500
-    HeadShotDamageMult=2.000000
+    HeadShotDamageMult=1.500000 // 2.000000
     ExploWallOut=2.000000
     Speed=6500.000000
     MaxSpeed=8000.000000

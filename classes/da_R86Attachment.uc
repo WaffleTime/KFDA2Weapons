@@ -136,11 +136,10 @@ simulated event ThirdPersonEffects()
 
             WeaponLight();
             if(bUseTraces) UpdateTracer();
-
-        Super.ThirdPersonEffects();
         }
     }
 
+    Super.ThirdPersonEffects();
 }
 
 simulated function Destroyed()
