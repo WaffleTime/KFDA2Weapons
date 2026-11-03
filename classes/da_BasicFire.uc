@@ -9,7 +9,7 @@ var() Emitter MuzEmitter;
 
 var sound RicochetSFX[2], MaterialSFX[20];
 var float HitSFXVolume, HitFXChance;
-var class<emitter> HitFx, MaterialFX[20];
+var class<emitter> HitEmitterClass, MaterialFX[20];
 var class<ProjectedDecal> HitDecal;
 
 // I could fix this in blender but I'm lazy maybe later - Waffle
@@ -68,65 +68,7 @@ function FlashMuzzleFlash()
         MuzEmitter.SpawnParticle(1);
 }
 
-//Old DoTrace - Possibly causing crashes
-/*function DoTrace(Vector Start, Rotator Dir)
-{
-	local Vector X,Y,Z, End, HitLocation, HitNormal, ArcEnd;
-	local Actor Other;
-	local KFWeaponAttachment WeapAttach;
-	local array<int>	HitPoints;
-	local KFPawn HitPawn;
-    local int Damage;
-    local material surface;
-
-	MaxRange();
-
-	Weapon.GetViewAxes(X, Y, Z);
-	if ( Weapon.WeaponCentered() )
-		ArcEnd = (Instigator.Location + Weapon.EffectOffset.X * X + 1.5 * Weapon.EffectOffset.Z * Z);
-	else ArcEnd = (Instigator.Location + Instigator.CalcDrawOffset(Weapon) + Weapon.EffectOffset.X * X + Weapon.Hand * Weapon.EffectOffset.Y * Y +
-		 Weapon.EffectOffset.Z * Z);
-
-	X = Vector(Dir);
-	End = Start + TraceRange * X;
-	Other = Instigator.HitPointTrace(HitLocation, HitNormal, End, HitPoints, Start,, 1);
-
-	if ( Other != None && Other != Instigator && Other.Base != Instigator )
-	{
-        WeapAttach = KFWeaponAttachment(Weapon.ThirdPersonActor);
-        SpawnHitEffects(other, surface, hitlocation, rotator(hitnormal));
-
-		if ( !Other.bWorldGeometry )
-		{
-			// Update hit effect except for pawns
-			if ( !Other.IsA('Pawn') && !Other.IsA('HitScanBlockingVolume') &&
-                !Other.IsA('ExtendedZCollision') )
-			{
-				if( WeapAttach!=None )
-				{
-                    WeapAttach.UpdateHit(Other, HitLocation, HitNormal);
-                }
-			}
-
-			HitPawn = KFPawn(Other);
-		}
-		else
-		{
-			HitLocation = HitLocation + 2.0 * HitNormal;
-            if ( WeapAttach != None )
-			{
-				WeapAttach.UpdateHit(Other,HitLocation,HitNormal);
-			}
-		}
-	}
-	else
-	{
-		HitLocation = End;
-		HitNormal = Normal(Start - End);
-	}
-    Super(ScrnFire).DoTrace(Start,Dir);
-}*/
-
+// DoTrace is called server-side only from DoFireEffect()
 function DoTrace(Vector Start, Rotator Dir)
 {
     local Vector X,Y,Z, End, HitLocation, HitNormal, ArcEnd;
@@ -139,6 +81,7 @@ function DoTrace(Vector Start, Rotator Dir)
     local KFMonster Zed;
     local int i;
     local bool bWasDecapitated;
+    local vector SurfLoc, SurfNorm;
     local material surface;
 
     KillCountPerTrace = 0;
@@ -160,33 +103,33 @@ function DoTrace(Vector Start, Rotator Dir)
     HitMomentum = Momentum;
 
     // HitCount isn't a number of max penetration. It is just to be sure we won't stuck in infinite loop
-    while( ++HitCount < 127 && HitDamage >= DamageMin )
-    {
+    while (++HitCount < 127 && HitDamage >= DamageMin) {
         Zed = none;
         HitPawn = none;
 
         Other = Instigator.HitPointTrace(HitLocation, HitNormal, End, HitPoints, Start,, 1);
-        if( Other == none ) {
+
+        if (Other == none)
             break;
-        }
-        else if( Other==Instigator || Other.Base == Instigator ) {
+
+        if (Other == Instigator || Other.Base == Instigator) {
             IgnoreActors[IgnoreActors.Length] = Other;
             Other.SetCollision(false);
             Start = HitLocation;
             continue;
         }
-        else if ( Other.bWorldGeometry || Other == Level ) {
-            if( KFWeaponAttachment(Weapon.ThirdPersonActor) != None )
-                KFWeaponAttachment(Weapon.ThirdPersonActor).UpdateHit(Other,HitLocation,HitNormal);
-                SpawnHitEffects(other, surface, hitlocation, rotator(hitnormal)); // Not sure where the optimal place to put this
-            break;
+
+        surface = none;
+        if (Other.bWorldGeometry || Other == Level) {
+            if (Trace(SurfLoc, SurfNorm, HitLocation - HitNormal * 8, HitLocation + HitNormal * 8, false,, surface) == none)
+                surface = none;
         }
+        SpawnHitEffects(Other, surface, HitLocation, rotator(HitNormal));
 
         Zed = KFMonster(Other);
         if ( Zed != none ) {
             IgnoreActors[IgnoreActors.Length] = Other;
             Other.SetCollision(false);
-            SpawnHitEffects(other, surface, hitlocation, rotator(hitnormal)); // Not sure where the optimal place to put this
         }
         else if( ExtendedZCollision(Other) != none && Other.Owner != none ) {
             IgnoreActors[IgnoreActors.Length] = Other;
@@ -194,27 +137,34 @@ function DoTrace(Vector Start, Rotator Dir)
             Other.SetCollision(false);
             Other.Owner.SetCollision(false);
             Zed = KFMonster(Other.Owner);
-            SpawnHitEffects(other, surface, hitlocation, rotator(hitnormal)); // Not sure where the optimal place to put this
         }
         else {
             HitPawn = KFPawn(Other);
-            SpawnHitEffects(other, surface, hitlocation, rotator(hitnormal)); // Not sure where the optimal place to put this
         }
 
         if (HitPawn != none) {
-            if(!HitPawn.bDeleteMe) {
-                 HitPawn.ProcessLocationalDamage(int(HitDamage), Instigator, HitLocation, HitMomentum*X,DamageType,
-                        HitPoints);
+            // bWasDecapitated in this case means was dead or shot missed any bones/body.
+            // In that case, our bullet flies by without damage loss.
+            bWasDecapitated = HitPawn.bDeleteMe || HitPoints.Length == 0 || HitPawn.Health < 0;
+
+            if(!HitPawn.bDeleteMe && HitPoints.Length > 0) {
+                DamagePlayer(HitPawn, HitDamage, HitLocation, HitMomentum*X, HitPoints);
             }
             IgnoreActors[IgnoreActors.Length] = Other;
-            IgnoreActors[IgnoreActors.Length] = HitPawn.AuxCollisionCylinder;
             Other.SetCollision(false);
-            HitPawn.AuxCollisionCylinder.SetCollision(false);
+            if (HitPawn.AuxCollisionCylinder.bCollideActors) {
+                IgnoreActors[IgnoreActors.Length] = HitPawn.AuxCollisionCylinder;
+                HitPawn.AuxCollisionCylinder.SetCollision(false);
+            }
+
+            if(bWasDecapitated) {
+                Start = HitLocation;
+                continue;
+            }
         }
         else if (Zed != none) {
             bWasDecapitated = Zed.bDecapitated;
-            AdjustZedDamage(Zed, HitDamage);
-            Zed.TakeDamage(HitDamage, Instigator, HitLocation, HitMomentum*X, DamageType);
+            DamageZed(Zed, AdjustZedDamage(Zed, X, HitDamage), HitLocation, HitMomentum*X);
             if (Zed == none || Zed.Health <= 0 || (!bWasDecapitated && Zed.bDecapitated)) {
                 ++KillCountPerTrace;
             }
@@ -235,6 +185,10 @@ function DoTrace(Vector Start, Rotator Dir)
         HitDamage *= PenDmgReduction;
         HitMomentum *= PenDmgReduction;
         Start = HitLocation;
+    }
+
+    if (Other != none) {
+        Super(ScrnFire).HitFX(Other, HitLocation, HitNormal);
     }
 
     // Turn the collision back on for any actors we turned it off
@@ -259,6 +213,9 @@ function SpawnHitEffects(actor other, material surface, vector hitlocation, rota
     local int matType;
     local Actor FX;
 
+    if (Other == none || Other.IsA('HitScanBlockingVolume'))
+        return;
+
     if(vehicle(other)!=none) matType=3;
     else if(pawn(other)!=none) matType=6;
     else if(surface!=none) matType=surface.SurfaceType;
@@ -266,14 +223,14 @@ function SpawnHitEffects(actor other, material surface, vector hitlocation, rota
 	if( Other.IsA('KFMonster') || Other.IsA('ExtendedZCollision') )
 		matType = 6;
 
-    fx = hackSpawn(HitFX, hitlocation, hitnormal);
+    fx = hackSpawn(HitEmitterClass, hitlocation, hitnormal);
 
     if(frand()<hitfxchance)
     {
         if(hitDecal!=none)
             hackSpawn(hitDecal, hitlocation-vector(hitnormal)*2, rotator(-vector(hitNormal)));
 
-        if(hitFX!=none && fx!=none)
+        if(HitEmitterClass!=none && fx!=none)
             if(frand()<0.075 || ((mattype==3 || mattype==15) && frand()<0.3)) {
                 FX.PlaySound(RicochetSFX[rand(2)],SLOT_None,HitSFXVolume*1.2,,175,0.9+frand()*0.2);
                 hackSpawn(class'KFDA2Weapons.da_effects_BulletHitRicochet',hitLocation, hitnormal);
@@ -316,7 +273,7 @@ defaultproperties
     MaterialSFX(19)=Sound'DA2_Various.HitSounds.bullethitdirt'
     HitSFXVolume=0.750000
     HitFXChance=1.000000
-    HitFx=Class'KFDA2Weapons.da_effects_BulletHit'
+    HitEmitterClass=Class'KFDA2Weapons.da_effects_BulletHit'
     MaterialFX(0)=Class'KFDA2Weapons.da_effects_BulletHitRock'
     MaterialFX(1)=Class'KFDA2Weapons.da_effects_BulletHitRock'
     MaterialFX(2)=Class'KFDA2Weapons.da_effects_BulletHitDirt'
